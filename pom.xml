@@ -47,7 +47,7 @@
   <scm>
     <connection>scm:svn:http://svn.apache.org/repos/asf/incubator/jena/Jena2/Fuseki/tags/jena-fuseki-0.2.1-incubating-RC-1</connection>
     <developerConnection>scm:svn:https://svn.apache.org/repos/asf/incubator/jena/Jena2/Fuseki/tags/jena-fuseki-0.2.1-incubating-RC-1</developerConnection>
-    <url>https://svn.apache.org/viewvc/incubator/jena/Jena2/Fuseki/tags/jena-fuseki-0.2.1-incubating-RC-1</url>
+    <url>https://svn.apache.org/repos/asf/incubator/jena/Jena2/Fuseki/tags/jena-fuseki-0.2.1-incubating-RC-1</url>
   </scm>
 
   <properties>
