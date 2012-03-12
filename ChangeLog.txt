@@ -1,8 +1,14 @@
 ==== Fuseki
 
-== Version 1.0
-
 == 0.2.1
+
++ Switch from JSPs to Velocity.
+  This means the standalone jar does not contain a JSP engine anymore.  
+
++ Service by configuration file, command line argument --config=
+
++ Add a servlet filter that processes Accept-Encoding 
+  Result are now compressed if the client request asks for that (JENA-209)
 
 + Rename packages to be org.apache.jena.fuseki.
 

@@ -29,9 +29,10 @@ Assumes jar made and onejar has been assembled.
 
   <formats>
     <format>zip</format>
+    <format>tar.gz</format>
   </formats>
 
-  <baseDirectory>apache-${project.artifactId}-${project.version}</baseDirectory>
+  <baseDirectory>${project.artifactId}-${project.version}</baseDirectory>
 
   <files>
     <file>
@@ -39,30 +40,35 @@ Assumes jar made and onejar has been assembled.
       <outputDirectory></outputDirectory>
       <destName>fuseki-server.jar</destName>
     </file>
+    <file>
+      <source>dist/LICENSE-dist</source>
+      <destName>LICENSE</destName>
+    </file>
+    <file>
+      <source>dist/NOTICE-dist</source>
+      <destName>NOTICE</destName>
+    </file>
   </files>
 
   <fileSets>
     <fileSet>
       <outputDirectory></outputDirectory>
       <includes>
-	<include>README*</include>
-	<include>DISCLAIMER*</include>
-	<include>LICENSE*</include>
-	<include>NOTICE*</include>
-	<include>ChangeLog.txt</include>
-	<include>pom.xml</include>
+        <include>README*</include>
+        <include>DEPENDENCIES*</include>
+        <include>DISCLAIMER*</include>
+        <include>ChangeLog.txt</include>
       </includes>
     </fileSet>
 
     <fileSet>
       <outputDirectory></outputDirectory>
       <includes>
-	<include>log4j.properties</include>
-	<include>fuseki-server</include>
-	<include>tdb.ttl</include>
-	<include>s-*</include>
-	<include>pages-update/*</include>
-	<include>pages-publish/*</include>
+        <include>log4j.properties</include>
+        <include>fuseki-server</include>
+        <include>config*.ttl</include>
+        <include>s-*</include>
+        <include>pages/*</include>
       </includes>
     </fileSet>
   </fileSets>

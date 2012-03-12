@@ -20,12 +20,15 @@ package org.apache.jena.fuseki;
 
 public class HttpNames
 {
+    // Request
     public static final String hAccept              = "Accept" ;
-    public static final String hAllow               = "Allow" ;
     public static final String hAcceptEncoding      = "Accept-Encoding" ;
     public static final String hAcceptCharset       = "Accept-Charset" ;
-    public static final String hAcceptRanges        = "Accept-Ranges" ;
-    
+    //public static final String hAcceptLanguage      = "Accept-Language" ;
+
+    // Response
+    public static final String xhAcceptRanges        = "Accept-Ranges" ;
+    public static final String hAllow               = "Allow" ;
     public static final String hContentEncoding     = "Content-Encoding" ;
     public static final String hContentLengh        = "Content-Length" ;
     public static final String hContentLocation     = "Content-Location" ;
@@ -33,6 +36,7 @@ public class HttpNames
     public static final String hContentType         = "Content-Type" ;
     public static final String hServer              = "Server" ;
     public static final String hLocation            = "Location" ; 
+    public static final String hVary                = "Vary" ;
     public static final String charset              = "charset" ;
     
     // CORS: 
@@ -71,11 +75,13 @@ public class HttpNames
     public static final String HEADER_IFMODSINCE    = "If-Modified-Since";
     public static final String HEADER_LASTMOD       = "Last-Modified";
     
-    public static final String ServiceQuery     = "/query" ;
-    public static final String ServiceQueryAlt  = "/sparql" ;
-    public static final String ServiceUpdate    = "/update" ;
-    public static final String ServiceData      = "/data" ;
-    public static final String ServiceUpload    = "/upload" ;
+    // Names for services in the default configuration
+    public static final String ServiceQuery     = "query" ;
+    public static final String ServiceQueryAlt  = "sparql" ;
+    public static final String ServiceUpdate    = "update" ;
+    public static final String ServiceData      = "data" ;
+    public static final String ServiceData1     = "" ;
+    public static final String ServiceUpload    = "upload" ;
     
     // Posisble values of fields.
     // TODO Pull in from results writer.

@@ -1,8 +1,8 @@
 #!/bin/bash
+# Licensed under the terms of http://www.apache.org/licenses/LICENSE-2.0
 
-## Run in development area.
-##Look for file names and make absolute before doing a cd.
-## Or use --fuseki_home= to find the HTML files
+## Run Fuseki, include development code if it looks like it's available.
+## Or --pages=
 
 export FUSEKI_HOME=${FUSEKI_HOME:-$HOME/Projects/Fuseki}
 if [ ! -e $FUSEKI_HOME ]
@@ -36,8 +36,9 @@ then
     CP="$FUSEKI_HOME/classes:$CP"
     fi
 
-JVM_ARGS="-Xmx1200M"
+FUSEKI_LOG=${FUSEKI_LOG:-} # "-D-Dlog4j.configuration=file:$FUSEKI_HOME/log4j.properties"
+JVM_ARGS="${JVM_ARGS:--Xmx1200M}"
 #JVM_ARGS="$JVM_ARGS -XX:MaxDirectMemorySize=1G"
 
-# Cope with the 
-exec java -cp "$CP" $JVM_ARGS org.apache.jena.fuseki.FusekiCmd --home="$FUSEKI_HOME" "$@"
+exec java -cp "$CP" $JVM_ARGS $FUSEKI_LOG org.apache.jena.fuseki.FusekiCmd \
+    --home="$FUSEKI_HOME" "$@"

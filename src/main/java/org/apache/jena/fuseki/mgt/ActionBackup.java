@@ -29,6 +29,7 @@ import java.io.PrintWriter ;
 import java.util.concurrent.Callable ;
 import java.util.concurrent.ExecutorService ;
 import java.util.concurrent.Executors ;
+import java.util.zip.GZIPOutputStream ;
 
 import javax.servlet.http.HttpServletRequest ;
 import javax.servlet.http.HttpServletResponse ;
@@ -40,6 +41,7 @@ import org.apache.jena.fuseki.server.DatasetRegistry ;
 import org.apache.jena.fuseki.servlets.HttpAction ;
 import org.apache.jena.fuseki.servlets.ServletBase ;
 import org.openjena.atlas.io.IO ;
+import org.openjena.atlas.lib.FileOps ;
 import org.openjena.atlas.logging.Log ;
 import org.openjena.riot.out.NQuadsWriter ;
 
@@ -64,7 +66,16 @@ public class ActionBackup extends ServletBase
         // request.getRemoteUser() ;
         // request.getUserPrincipal() ;
 
-        final String dataset = request.getParameter("dataset") ;
+        String dataset = request.getParameter("dataset") ;
+        if ( dataset == null )
+        {
+            response.sendError(HttpSC.BAD_REQUEST_400, "Required parameter missing: ?dataset=") ;
+            return ;
+        }
+        
+        if ( ! dataset.startsWith("/") )
+            dataset="/"+dataset ;
+        
         // HttpSession session = request.getSession(true) ;
         // session.setAttribute("dataset", dataset) ;
         // session.setMaxInactiveInterval(15*60) ; // 10 mins
@@ -78,25 +89,30 @@ public class ActionBackup extends ServletBase
 
         DatasetRef ref = DatasetRegistry.get().get(dataset) ;
         DatasetGraph dsg = ref.dataset ;
-        final HttpAction action = new HttpAction(requestIdAlloc.incrementAndGet(), dsg, request, response, false) ;
+        HttpAction action = new HttpAction(requestIdAlloc.incrementAndGet(), dsg, request, response, false) ;
         scheduleBackup(action, dataset) ;
     }
 
-    private void scheduleBackup(final HttpAction action, final String dataset)
+    static final String BackupArea = "backups" ;  
+    
+    private void scheduleBackup(final HttpAction action, String dataset)
     {
+        final String ds = dataset.startsWith("/")? dataset : "/"+dataset ;
+        
         String timestamp = Utils.nowAsString("yyyy-MM-dd_HH-mm-ss") ;
-        final String filename = "backups" + dataset + "_" + timestamp ;
+        final String filename = BackupArea + dataset + "_" + timestamp ;
+        FileOps.ensureDir(BackupArea) ;
         
         try {
             final Callable<Boolean> task = new Callable<Boolean>() {
                 @Override
                 public Boolean call() throws Exception
                 {
-                    log.info(format("[%d] Start backup %s to '%s'", action.id, dataset, filename)) ;
+                    log.info(format("[%d] Start backup %s to '%s'", action.id, ds, filename)) ;
                     action.beginRead() ;
                     try {
                         backup(action.getActiveDSG(), filename) ;
-                        log.info(format("[%d] Finish backup %s to '%s'", action.id, dataset, filename)) ;
+                        log.info(format("[%d] Finish backup %s to '%s'", action.id, ds, filename)) ;
                     }
                     catch ( RuntimeException ex )
                     {
@@ -152,8 +168,22 @@ public class ActionBackup extends ServletBase
     {
         try
         {
-            OutputStream out = new FileOutputStream(backupfile) ;
-            out = new BufferedOutputStream(out) ;
+            OutputStream out ;
+            if ( false )
+            {
+                // This seems to achive about the same as "gzip -6"
+                // It's not too expensive in elapsed time but it's not zero cost.
+                // GZip, large buffer.
+                out = new FileOutputStream(backupfile+".gz") ;
+                out = new GZIPOutputStream(out, 8*1024) ;
+                out = new BufferedOutputStream(out) ;
+            }
+            else
+            {
+                out = new FileOutputStream(backupfile) ;
+                out = new BufferedOutputStream(out) ;
+            }
+            
             NQuadsWriter.write(out, dsg) ;
             out.close() ;
         } 

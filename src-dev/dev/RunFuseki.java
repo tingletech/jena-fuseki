@@ -22,35 +22,53 @@ import org.apache.jena.fuseki.FusekiCmd ;
 
 public class RunFuseki
 {
-    public static void main(String[] args) throws Exception
+    public static void main(String[] args)
     {
-        //main1() ;
-        main2() ;
+        //demo() ;
+        //FusekiCmd.main("--config=config.ttl") ; System.exit(0) ;
+        main1() ;
     }
     
-        
-    private static void main2()
+    public static void demo()
     {
-        FusekiCmd.main("--config=config_tdb.ttl") ;
+        String DIR="DemoServer" ;
+        FusekiCmd.main("--config="+name(DIR,"config.ttl"), "--pages="+name(DIR, "demo-pages")) ;
         System.exit(0) ;
     }
-
-
-    private static void main1() throws Exception
+    
+    public static String name(String DIR, String filename)
+    {
+        StringBuilder sb = new StringBuilder() ;
+        if ( ! filename.startsWith("/") )
+        {
+            sb.append(DIR) ;
+            if ( ! DIR.endsWith("/") )
+                sb.append("/") ;
+        }
+        sb.append(filename) ;
+        return sb.toString() ;
+    }
+    
+    
+    private static void main1()
     {
         FusekiCmd.main(
                     //"-v", 
                     //"--debug",
-                    "--update",
+                    //"--update",
                     //"--timeout=1000,5000",
                     //"--set=arq:queryTimeout=1000",
                     //"--port=3030",
                     //"--mgtPort=3031",
                     //"--host=localhost",
-                    "--mem",
+                    //"--mem",
+                    //"--home=/home/afs/Projects/Fuseki",
                     //"--loc=DB",
-                    //"--file=/home/afs/Datasets/MusicBrainz/tracks-1k.nt",
-                    //"--desc=desc.ttl", 
+                    "--file=D.nt",
+                    //"--gzip=no",
+                    //"--desc=desc.ttl",
+                    //--pages=
+                    //"--jetty-config=jetty-fuseki.xml",
                     "/ds"
                     ) ;
         System.exit(0) ;

@@ -23,13 +23,12 @@ import static org.apache.jena.fuseki.Fuseki.serverLog ;
 import java.io.InputStream ;
 import java.net.InetAddress ;
 import java.net.UnknownHostException ;
-import java.util.Arrays ;
 import java.util.List ;
 
 import org.apache.jena.fuseki.mgt.ManagementServer ;
-import org.apache.jena.fuseki.server.DatasetRef ;
 import org.apache.jena.fuseki.server.FusekiConfig ;
 import org.apache.jena.fuseki.server.SPARQLServer ;
+import org.apache.jena.fuseki.server.ServerConfig ;
 import org.eclipse.jetty.server.Server ;
 import org.openjena.atlas.io.IO ;
 import org.openjena.atlas.lib.FileOps ;
@@ -83,8 +82,10 @@ public class FusekiCmd extends CmdARQ
     private static ArgDecl argTimeout       = new ArgDecl(ArgDecl.HasValue, "timeout") ;
     private static ArgDecl argFusekiConfig  = new ArgDecl(ArgDecl.HasValue, "config", "conf") ;
     private static ArgDecl argJettyConfig   = new ArgDecl(ArgDecl.HasValue, "jetty-config") ;
+    private static ArgDecl argGZip          = new ArgDecl(ArgDecl.HasValue, "gzip") ;
     
-    private static ArgDecl argHome         = new ArgDecl(ArgDecl.HasValue, "home") ;
+    private static ArgDecl argHome          = new ArgDecl(ArgDecl.HasValue, "home") ;
+    private static ArgDecl argPages         = new ArgDecl(ArgDecl.HasValue, "pages") ;
     
     //private static ModLocation          modLocation =  new ModLocation() ;
     private static ModDatasetAssembler  modDataset = new ModDatasetAssembler() ;
@@ -109,8 +110,10 @@ public class FusekiCmd extends CmdARQ
     private boolean allowUpdate = false ;
     
     private String fusekiConfigFile = null ;
+    private boolean enableCompression = true ;
     private String jettyConfigFile = null ;
     private String homeDir = null ;
+    private String pagesDir ;
     
     public FusekiCmd(String...argv)
     {
@@ -122,6 +125,7 @@ public class FusekiCmd extends CmdARQ
         add(argTDB,     "--loc=DIR",            "Use an existing TDB database (or create if does not exist)") ;
         add(argMemTDB,  "--memTDB",             "Create an in-memory, non-persistent dataset using TDB (testing only)") ;
         add(argPort,    "--port",               "Listen on this port number") ;
+        add(argPages,   "--pages=DIR",          "Set of pages to serve as static content") ; 
         // Set via jetty config file.
         //add(argHost,    "--host=name or IP",    "Listen on a particular interface (e.g. localhost)") ;
         add(argTimeout, "--timeout",            "Global timeout applied to queries (value in ms) -- format is X[,Y] ") ;
@@ -130,6 +134,7 @@ public class FusekiCmd extends CmdARQ
         add(argJettyConfig, "--jetty-config=",  "Set up the server (not services) with a Jetty XML file") ;
         add(argMgtPort, "--mgt=port",           "Enable the management commands on the given port") ; 
         add(argHome, "--home=DIR",              "Root of Fuseki installation (overrides environment variable FUSEKI_HOME)") ; 
+        add(argGZip, "--gzip=on|off",           "Enable GZip compression (HTTP Accept-Encoding) if request header set") ;
         
         super.modVersion.addClass(TDB.class) ;
         super.modVersion.addClass(Fuseki.class) ;
@@ -301,6 +306,19 @@ public class FusekiCmd extends CmdARQ
            List<String> args = super.getValues(argHome) ;
            homeDir = args.get(args.size()-1) ;
         }
+        
+        if ( contains(argPages) )
+        {
+           List<String> args = super.getValues(argPages) ;
+           pagesDir = args.get(args.size()-1) ;
+        }
+
+        if ( contains(argGZip) )
+        {
+            if ( ! hasValueOfTrue(argGZip) && ! hasValueOfFalse(argGZip) )
+                throw new CmdException(argGZip.getNames().get(0)+": Not understood: "+getValue(argGZip)) ;
+            enableCompression = super.hasValueOfTrue(argGZip) ;
+        }
     }
 
     private static String sort_out_dir(String path)
@@ -322,28 +340,42 @@ public class FusekiCmd extends CmdARQ
                  homeDir = "." ;
         }
         
-        SPARQLServer server ;
-
         homeDir = sort_out_dir(homeDir) ;
+        if ( ! FileOps.exists(homeDir) )
+            Fuseki.configLog.warn("No such directory for Fuseki home: "+homeDir) ;
         
-        String pagesDir = homeDir+Fuseki.PagesAll ;
-        if ( ! FileOps.exists(pagesDir) )
-            Fuseki.configLog.warn("No such directory for static content: "+pagesDir) ;
+        String staticContentDir = pagesDir ;
+        if ( staticContentDir == null )
+            staticContentDir = homeDir+Fuseki.PagesStatic ;
+        
+        Fuseki.configLog.debug("Static content: "+staticContentDir) ;
+
+        if ( ! FileOps.exists(staticContentDir) )
+            Fuseki.configLog.warn("No such directory for static content: "+staticContentDir) ;
         
         if ( jettyConfigFile != null )
             Fuseki.configLog.info("Jetty configuration: "+jettyConfigFile) ;
         
+        ServerConfig serverConfig ;
+        
         if ( fusekiConfigFile != null )
         {
             Fuseki.configLog.info("Configuration file: "+fusekiConfigFile) ;
-            List<DatasetRef> services = FusekiConfig.configure(fusekiConfigFile) ;
-            server =  new SPARQLServer(jettyConfigFile, port, services, pagesDir) ;
+            serverConfig = FusekiConfig.configure(fusekiConfigFile) ;
         }
         else
-        {
-            DatasetRef sDesc = FusekiConfig.defaultConfiguration(datasetPath, dsg, allowUpdate) ;
-            server = new SPARQLServer(jettyConfigFile, port, Arrays.asList(sDesc), pagesDir ) ;
-        }
+            serverConfig = FusekiConfig.defaultConfiguration(datasetPath, dsg, allowUpdate) ;
+        
+        // TODO Get from parsing config file.
+        serverConfig.port = port ;
+        serverConfig.pages = staticContentDir ;
+        serverConfig.mgtPort = mgtPort ;
+        serverConfig.pagesPort = port ;
+        serverConfig.enableCompression = enableCompression ;
+        serverConfig.jettyConfigFile = jettyConfigFile ;
+        
+        SPARQLServer server = new SPARQLServer(serverConfig) ;
+        
         // Temporary
         Fuseki.setServer(server) ;
         
@@ -351,6 +383,7 @@ public class FusekiCmd extends CmdARQ
         
         if ( mgtPort > 0 )
         {
+            Fuseki.configLog.info("Management services on port "+mgtPort) ;
             mgtServer = ManagementServer.createManagementServer(mgtPort) ;
             try { mgtServer.start() ; }
             catch (java.net.BindException ex)

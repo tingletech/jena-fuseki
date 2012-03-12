@@ -95,13 +95,6 @@ public class SPARQL_Update extends SPARQL_Protocol
     }
 
     @Override
-    protected String mapRequestToDataset(String uri)
-    {
-        String uri2 = mapRequestToDataset(uri, HttpNames.ServiceUpdate) ;
-        return (uri2 != null) ? uri2 : uri ; 
-    }
-
-    @Override
     protected void perform(long id, DatasetGraph dsg, HttpServletRequest request, HttpServletResponse response)
     {
         // validate -> action.
@@ -181,7 +174,7 @@ public class SPARQL_Update extends SPARQL_Protocol
             return ;
         }
         
-        error(HttpSC.UNSUPPORTED_MEDIA_TYPE_415, "Must be "+WebContent.contentTypeSPARQLUpdate+" or "+WebContent.contentTypeForm) ;
+        error(HttpSC.UNSUPPORTED_MEDIA_TYPE_415, "Must be "+WebContent.contentTypeSPARQLUpdate+" or "+WebContent.contentTypeForm+" (got "+ctStr+")") ;
     }
 
     private void executeBody(HttpActionUpdate action)

@@ -71,6 +71,13 @@ public abstract class SPARQL_REST extends SPARQL_ServletBase
         {
             super(id, dsg, request, response, verbose) ;
         }
+
+        protected final boolean hasTarget()
+        {
+            return 
+                request.getParameter(HttpNames.paramGraphDefault) == null &&
+                request.getParameter(HttpNames.paramGraph) == null ;
+        }
         
         protected final Target getTarget() 
         {
@@ -221,13 +228,6 @@ public abstract class SPARQL_REST extends SPARQL_ServletBase
     protected abstract void doOptions(HttpActionREST action) ;
 
     @Override
-    protected String mapRequestToDataset(String uri)
-    {
-        String uri2 = mapRequestToDataset(uri, HttpNames.ServiceData) ;
-        return (uri2 != null) ? uri2 : uri ; 
-    }
-
-    @Override
     protected boolean requestNoQueryString(HttpServletRequest request, HttpServletResponse response)
     {
         errorBadRequest("No query string") ;
@@ -263,9 +263,9 @@ public abstract class SPARQL_REST extends SPARQL_ServletBase
         return mt ;
     }
     
-    protected static MediaType contentNegotationQuads(HttpServletRequest request)
+    protected static MediaType contentNegotationQuads(HttpActionREST action)
     {
-        return ConNeg.chooseContentType(request, DEF.quadsOffer, DEF.acceptTriG) ;
+        return ConNeg.chooseContentType(action.request, DEF.quadsOffer, DEF.acceptTriG) ;
     }
 
     // Auxilliary functionality.
@@ -319,7 +319,7 @@ public abstract class SPARQL_REST extends SPARQL_ServletBase
         Lang lang = FusekiLib.langFromContentType(ct.getContentType()) ;
         if ( lang == null )
         {
-            errorBadRequest("Unknown: "+contentTypeHeader) ;
+            errorBadRequest("Unknown content type for triples: "+contentTypeHeader) ;
             return null ;
         }
 
@@ -383,10 +383,10 @@ public abstract class SPARQL_REST extends SPARQL_ServletBase
         String d = request.getParameter(HttpNames.paramGraphDefault) ;
         
         if ( g != null && d !=null )
-            errorBadRequest("Both ?default and ?graph in request") ;
+            errorBadRequest("Both ?default and ?graph in the query string of the request") ;
         
         if ( g == null && d == null )
-            errorBadRequest("Neither ?default and ?graph in request") ;
+            errorBadRequest("Neither ?default nor ?graph in the query string of the request") ;
         
         @SuppressWarnings("unchecked")
         Enumeration<String> en = request.getParameterNames() ;
@@ -413,6 +413,9 @@ public abstract class SPARQL_REST extends SPARQL_ServletBase
             return Target.createDefault(dsg) ;
         
         // Named graph
+        if ( uri.equals(HttpNames.valueDefault ) )
+            // But "named" default
+            return Target.createDefault(dsg) ;
         
         // Strictly, a bit naughthy on the URI resolution.  But more sensible. 
         // Base is dataset.

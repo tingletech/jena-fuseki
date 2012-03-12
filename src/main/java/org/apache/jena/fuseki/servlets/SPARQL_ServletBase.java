@@ -36,11 +36,13 @@ import org.apache.jena.fuseki.server.DatasetRegistry ;
 import com.hp.hpl.jena.query.ARQ ;
 import com.hp.hpl.jena.query.QueryCancelledException ;
 import com.hp.hpl.jena.sparql.core.DatasetGraph ;
+import com.hp.hpl.jena.sparql.core.DatasetGraphFactory ;
+import com.hp.hpl.jena.tdb.migrate.DatasetGraphReadOnly ;
 
 public abstract class SPARQL_ServletBase extends ServletBase
 {
     private final PlainRequestFlag queryStringHandling ;
-
+    private static DatasetGraph dummyDSG = new DatasetGraphReadOnly(DatasetGraphFactory.createMemFixed()) ;
     // Flag for whether a request (no query string) is handled as a regular operation or
     // routed to special handler.
     protected enum PlainRequestFlag { REGULAR, DIFFERENT }
@@ -62,7 +64,7 @@ public abstract class SPARQL_ServletBase extends ServletBase
         response = responseTracked ;
         
         String uri = request.getRequestURI() ;
-        setCommonHeaders(response) ;
+        initResponse(request, response) ;
         
         try {
             if ( request.getQueryString() == null && queryStringHandling == PlainRequestFlag.DIFFERENT )
@@ -84,12 +86,15 @@ public abstract class SPARQL_ServletBase extends ServletBase
                 }
                 dsg = desc.dataset ;
             }
+            else
+                // Dummy dsg.
+                dsg = dummyDSG ;
             perform(id, dsg, request, response) ;
             //serverlog.info(String.format("[%d] 200 Success", id)) ;
         } catch (QueryCancelledException ex)
         {
-        	String message = String.format("The query timed out after %sms.", ARQ.getContext().get(ARQ.queryTimeout));
-        	responseSendError(response, HttpSC.SERVICE_UNAVAILABLE_503, message);
+        	String message = String.format("The query timed out (restricted to %s ms).", ARQ.getContext().get(ARQ.queryTimeout));
+        	responseSendError(response, HttpSC.REQUEST_TIMEOUT_408, message);
             // Log message done by printResponse in a moment.
         } catch (ActionErrorException ex)
         {
@@ -104,15 +109,14 @@ public abstract class SPARQL_ServletBase extends ServletBase
         catch (Throwable ex)
         {   // This should not happen.
             //ex.printStackTrace(System.err) ;
-            log.warn(format("[%d] RC = %d : %s", id, HttpSC.INTERNAL_SERVER_ERROR_500, ex.getMessage(), ex)) ;
+            log.warn(format("[%d] RC = %d : %s", id, HttpSC.INTERNAL_SERVER_ERROR_500, ex.getMessage()), ex) ;
             responseSendError(response, HttpSC.INTERNAL_SERVER_ERROR_500, ex.getMessage()) ;
         }
         
         printResponse(id, responseTracked) ;
     }
 
-    //@Override
-    @SuppressWarnings("unused")
+    @SuppressWarnings("unused") // ServletException
     protected void doPatch(HttpServletRequest request, HttpServletResponse response)
     throws ServletException, IOException
     {
@@ -143,6 +147,15 @@ public abstract class SPARQL_ServletBase extends ServletBase
                 }
             }
         }
+    }
+    
+    private void initResponse(HttpServletRequest request, HttpServletResponse response)
+    {
+        setCommonHeaders(response) ;
+        String method = request.getMethod().toUpperCase() ;
+        // All GET and HEAD operations are sensitive to conneg so ...
+        if ( HttpNames.METHOD_GET.equals(method) || HttpNames.METHOD_HEAD.equals(method) )
+            setVaryHeader(response) ;
     }
     
     private void printResponse(long id, HttpServletResponseTracker response)
@@ -178,14 +191,26 @@ public abstract class SPARQL_ServletBase extends ServletBase
     /** Map request to uri in the registry.
      *  null means no mapping done (passthrough). 
      */
-    protected abstract String mapRequestToDataset(String uri) ;
-    
-    /** A possible implementation for mapRequestToDataset(String) */
-    protected String mapRequestToDataset(String uri, String tail)
+    protected String mapRequestToDataset(String uri) 
     {
-        if ( uri.endsWith(tail) )
-            return uri.substring(0, uri.length()-tail.length()) ;
-        return null ;
+        return mapRequestToDataset$(uri) ;
+    }
+    
+    /** A possible implementation for mapRequestToDataset(String)
+     *  that assums the form /dataset/service 
+     */
+    protected String mapRequestToDataset$(String uri)
+    {
+        // Chop off trailing part - the service selector
+        // e.f. /dataset/sparql => /dataset 
+        int i = uri.lastIndexOf('/') ;
+        if ( i == 0 )
+        {
+            // started with '/' - leave.
+            return uri ;
+        }
+        
+        return uri.substring(0, i) ;
     }
 
     protected abstract void perform(long id, DatasetGraph dsg, HttpServletRequest request, HttpServletResponse response) ;
